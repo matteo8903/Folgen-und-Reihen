@@ -50,3 +50,4 @@ if __name__ == "__main__":
     print(f"\n✅ Das {n}. Glied wurde berechnet.")
     print(f"📊 Das {n}. Glied ist: {result[-1]}")
     print(f"📈 Alle Werte: {result}")
+    
