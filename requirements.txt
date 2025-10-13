@@ -1,3 +1,4 @@
 streamlit==1.29.0
 sympy==1.12
 pandas==2.1.0
+
