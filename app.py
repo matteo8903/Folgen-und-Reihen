@@ -49,10 +49,19 @@ if modus == "ε-Umgebung (Konvergenz)":
             format="%.4f"
         )
     
+    max_iterations = st.number_input(
+        "Maximale Anzahl Berechnungen:",
+        min_value=10,
+        max_value=100000,
+        value=10000,
+        step=100,
+        help="Stoppt nach dieser Anzahl, auch wenn ε nicht erreicht wurde"
+    )
+    
     if st.button("🔍 Berechnen", key="eps_button"):
         try:
             with st.spinner("Berechne..."):
-                resultat = berechne_folge(folge_input, epsilon)
+                resultat = berechne_folge(folge_input, epsilon, max_iterations)
                 
                 if resultat['divergent']:
                     st.error(f"❌ {resultat['message']}")
@@ -62,6 +71,24 @@ if modus == "ε-Umgebung (Konvergenz)":
                     st.metric("Grenzwert", resultat['limes'])
                     st.metric("Anzahl Berechnungen", resultat['anzahl'])
                     st.metric("Letzter Wert", f"{resultat['letzter_wert']:.6f}")
+                    
+                    # Visualisierung hinzufügen
+                    st.markdown("---")
+                    st.subheader("📊 Visualisierung")
+                    
+                    import pandas as pd
+                    
+                    # DataFrame erstellen
+                    df = pd.DataFrame({
+                        'n': list(range(1, len(resultat['alle_werte']) + 1)),
+                        'a_n': resultat['alle_werte'],
+                        'Grenzwert': [float(resultat['limes'])] * len(resultat['alle_werte'])
+                    })
+                    
+                    # Streamlit Line Chart (automatisch interaktiv!)
+                    st.line_chart(df.set_index('n'))
+                    
+                    st.caption(f"🔴 Die rote horizontale Linie würde bei ε = {epsilon} liegen")
                     
                     with st.expander("📈 Alle berechneten Werte anzeigen"):
                         for i, wert in enumerate(resultat['alle_werte'], 1):
@@ -98,6 +125,50 @@ elif modus == "Glied berechnen":
                     
                     st.success(f"✅ Das {resultat['anzahl']}. Glied wurde berechnet!")
                     st.metric(f"Glied a_{{{resultat['anzahl']}}}", f"{resultat['letzter_wert']:.6f}")
+                    
+                    # Visualisierung hinzufügen
+                    st.markdown("---")
+                    st.subheader("📊 Visualisierung")
+                    
+                    import plotly.graph_objects as go
+                    
+                    # Daten vorbereiten
+                    n_werte = list(range(1, len(resultat['alle_werte']) + 1))
+                    folgen_werte = resultat['alle_werte']
+                    
+                    # Interaktiven Plot erstellen
+                    fig = go.Figure()
+                    
+                    # Folge hinzufügen
+                    fig.add_trace(go.Scatter(
+                        x=n_werte,
+                        y=folgen_werte,
+                        mode='lines+markers',
+                        name='Folge a_n',
+                        line=dict(color='#1f77b4', width=2),
+                        marker=dict(size=6)
+                    ))
+                    
+                    # Markiere das gesuchte Glied
+                    fig.add_trace(go.Scatter(
+                        x=[resultat['anzahl']],
+                        y=[resultat['letzter_wert']],
+                        mode='markers',
+                        name=f'Glied {resultat["anzahl"]}',
+                        marker=dict(size=15, color='red', symbol='star')
+                    ))
+                    
+                    # Layout anpassen
+                    fig.update_layout(
+                        title='Folgenverlauf (interaktiv - zoom & pan)',
+                        xaxis_title='n',
+                        yaxis_title='a_n',
+                        hovermode='x unified',
+                        height=600,
+                        template='plotly_dark'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
                     
                     with st.expander("📈 Alle berechneten Werte anzeigen"):
                         for i, wert in enumerate(resultat['alle_werte'], 1):
@@ -159,6 +230,81 @@ elif modus == "Partialsumme (Σ)":
                     st.success(f"✅ Die Reihe konvergiert gegen: {resultat['grenzwert']}")
                 else:
                     st.warning(f"⚠️ {resultat['konvergenz_info']}")
+                
+                # Visualisierung hinzufügen
+                st.markdown("---")
+                st.subheader("📊 Visualisierung")
+                
+                import plotly.graph_objects as go
+                from plotly.subplots import make_subplots
+                
+                # Daten vorbereiten
+                n_werte = list(range(1, len(resultat['partialsummen']) + 1))
+                
+                # Zwei Subplots erstellen
+                fig = make_subplots(
+                    rows=2, cols=1,
+                    subplot_titles=('Einzelne Terme der Folge', 'Partialsummen (Kumulative Summe)'),
+                    vertical_spacing=0.12
+                )
+                
+                # Plot 1: Einzelne Terme als Balken
+                fig.add_trace(
+                    go.Bar(
+                        x=n_werte,
+                        y=resultat['terme'],
+                        name='Terme a_n',
+                        marker=dict(color='steelblue'),
+                        opacity=0.7
+                    ),
+                    row=1, col=1
+                )
+                
+                # Plot 2: Partialsummen
+                fig.add_trace(
+                    go.Scatter(
+                        x=n_werte,
+                        y=resultat['partialsummen'],
+                        mode='lines+markers',
+                        name='Partialsummen S_n',
+                        line=dict(color='green', width=2),
+                        marker=dict(size=5)
+                    ),
+                    row=2, col=1
+                )
+                
+                # Grenzwert-Linie hinzufügen (falls vorhanden)
+                if resultat['reihe_konvergiert'] and resultat['grenzwert'] != "Unbekannt":
+                    try:
+                        grenzwert_float = float(resultat['grenzwert'])
+                        fig.add_trace(
+                            go.Scatter(
+                                x=[n_werte[0], n_werte[-1]],
+                                y=[grenzwert_float, grenzwert_float],
+                                mode='lines',
+                                name=f'Grenzwert: {resultat["grenzwert"]}',
+                                line=dict(color='red', width=2, dash='dash')
+                            ),
+                            row=2, col=1
+                        )
+                    except:
+                        pass
+                
+                # Layout anpassen
+                fig.update_xaxes(title_text="n", row=1, col=1)
+                fig.update_yaxes(title_text="a_n", row=1, col=1)
+                fig.update_xaxes(title_text="n", row=2, col=1)
+                fig.update_yaxes(title_text="S_n", row=2, col=1)
+                
+                fig.update_layout(
+                    height=900,
+                    showlegend=True,
+                    hovermode='x unified',
+                    template='plotly_dark',
+                    title_text="Partialsummen Analyse (interaktiv - zoom & pan)"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
                 
                 with st.expander("📊 Einzelne Terme anzeigen"):
                     for i, wert in enumerate(resultat['terme'], 1):
