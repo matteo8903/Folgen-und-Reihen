@@ -1,6 +1,28 @@
 import sympy as sp
 
 
+def folge(f, ntes_glied):
+    """
+    Berechnet Partialsumme bis zu einem bestimmten Glied.
+    """
+    partialsumme = 0
+    n = 1
+    terme = []
+    partialsummen = []
+    
+    while True:
+        wert = eval(f, {"n": n, "__builtins__": {}})
+        partialsumme += wert
+        terme.append(wert)
+        partialsummen.append(partialsumme)
+        print(f"a_{{{n}}} = {wert}")
+        if n == ntes_glied:
+            break
+        n += 1
+    
+    return partialsumme, n, terme, partialsummen
+
+
 def berechne_partialsumme(folge_string: str, n_max: int):
     """
     Berechnet die Partialsumme einer Folge von n=1 bis n=n_max.
@@ -12,75 +34,35 @@ def berechne_partialsumme(folge_string: str, n_max: int):
     Returns:
         Dictionary mit Ergebnissen
     """
-    terme = []
-    partialsummen = []
-    summe = 0
-    
-    # Berechne alle Terme und Partialsummen
-    for n in range(1, n_max + 1):
-        wert = eval(folge_string, {"n": n, "__builtins__": {}})
-        terme.append(wert)
-        summe += wert
-        partialsummen.append(summe)
-        print(f"a_{{{n}}} = {wert}, S_{{{n}}} = {summe}")
-    
-    # Prüfe Konvergenz der Reihe
-    n_sym = sp.Symbol('n')
-    try:
-        reihen_grenzwert = sp.summation(sp.sympify(folge_string), (n_sym, 1, sp.oo))
-        
-        if reihen_grenzwert == sp.oo or reihen_grenzwert == -sp.oo:
-            reihe_konvergiert = False
-            konvergenz_info = "Die Reihe divergiert gegen Unendlich"
-        else:
-            reihe_konvergiert = True
-            konvergenz_info = f"Die Reihe konvergiert"
-    except:
-        reihen_grenzwert = "Unbekannt"
-        reihe_konvergiert = False
-        konvergenz_info = "Konvergenz konnte nicht bestimmt werden"
+    # Berechne Partialsumme
+    partialsumme, anzahl, terme, partialsummen = folge(folge_string, n_max)
     
     return {
-        'partialsumme': summe,
-        'anzahl_terme': n_max,
+        'partialsumme': partialsumme,
+        'anzahl_terme': anzahl,
         'terme': terme,
-        'partialsummen': partialsummen,
-        'reihe_konvergiert': reihe_konvergiert,
-        'grenzwert': reihen_grenzwert,
-        'konvergenz_info': konvergenz_info
+        'partialsummen': partialsummen
     }
 
 
-# Direktes Ausführen
+# Direktes Ausführen - Dein originaler Code-Stil
 if __name__ == "__main__":
-    f = input("Gib eine Folge ein (verwende 'n' als Variable): ")
-    n_max = int(input("Bis zu welchem n soll summiert werden? "))
+    import sympy as sp
     
-    terme = []
-    partialsummen = []
-    summe = 0
+    f = input("Gib eine Gleichung ein: ")
+    ntes_glied = float(input("Welche Partialsumme soll berechnet werden (BIS ZU WELCHEM GLIED): "))
     
-    print("\n=== Berechnung der Partialsumme ===\n")
+    def folge(f, ntes_glied):
+        partialsumme = 0
+        n = 1
+        while True:
+            wert = eval(f, {"n": n, "__builtins__": {}})
+            partialsumme += wert
+            print(f"a_{{{n}}} = {wert}")
+            if n == ntes_glied:
+                break
+            n += 1
+        return partialsumme, n
     
-    for n in range(1, n_max + 1):
-        wert = eval(f, {"n": n, "__builtins__": {}})
-        terme.append(wert)
-        summe += wert
-        partialsummen.append(summe)
-        print(f"a_{{{n}}} = {wert:.8f}, S_{{{n}}} = {summe:.8f}")
-    
-    print(f"\n✅ Partialsumme S_{{{n_max}}} = {summe}")
-    print(f"📊 Anzahl Terme: {n_max}")
-    
-    # Prüfe Konvergenz
-    n_sym = sp.Symbol('n')
-    try:
-        reihen_grenzwert = sp.summation(sp.sympify(f), (n_sym, 1, sp.oo))
-        print(f"\n🎯 Grenzwert der Reihe: {reihen_grenzwert}")
-        
-        if reihen_grenzwert == sp.oo or reihen_grenzwert == -sp.oo:
-            print("❌ Die Reihe divergiert")
-        else:
-            print("✅ Die Reihe konvergiert")
-    except:
-        print("\n⚠️ Konvergenz konnte nicht bestimmt werden")
+    ergebnis, anzahl = folge(f, ntes_glied)
+    print(f"\n📊 Die Summe der {anzahl} Gliedern ist: {ergebnis}")
