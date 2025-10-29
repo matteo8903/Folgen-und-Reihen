@@ -3,6 +3,7 @@ from limes import berechne_limes
 from glied_rechner import berechne_glied
 from folgen_rechner import berechne_folge
 from partialsummen_rechner import berechne_partialsumme
+from monotonie import berechne_monotonie
 
 st.set_page_config(page_title="Folgen Rechner", page_icon="📊", layout="wide")
 
@@ -13,7 +14,7 @@ st.markdown("---")
 st.sidebar.title("Navigation")
 modus = st.sidebar.radio(
     "Wähle einen Rechner:",
-    ["🎯 Limes bestimmen", "🔢 Glied berechnen", "📉 ε-Umgebung (Konvergenz)", "∑ Partialsumme"]
+    ["🎯 Limes bestimmen", "🔢 Glied berechnen", "📉 ε-Umgebung (Konvergenz)", "∑ Partialsumme", "📈 Monotonie untersuchen"]
 )
 
 # Limes bestimmen
@@ -24,13 +25,23 @@ if modus == "🎯 Limes bestimmen":
     folge_input = st.text_input(
         "Gib eine Folge ein (verwende 'n' als Variable):",
         value="(n+1)/n",
-        help="Beispiele: 1/n, (n+1)/n, n**2, sin(n)/n"
+        help="Beispiele: 1/n, (n+1)/n, n**2, (-1)**n",
+        key="limes_input"
+    )
+    
+    max_iter = st.number_input(
+        "Maximale Anzahl Iterationen:",
+        min_value=100,
+        max_value=100000,
+        value=10000,
+        step=1000,
+        help="Stoppt nach dieser Anzahl falls keine Entscheidung getroffen wurde"
     )
     
     if st.button("🔍 Limes berechnen", key="limes_button"):
         try:
             with st.spinner("Berechne Limes..."):
-                resultat = berechne_limes(folge_input)
+                resultat = berechne_limes(folge_input, max_iter)
                 st.session_state['limes_result'] = resultat
         
         except Exception as e:
@@ -46,55 +57,148 @@ if modus == "🎯 Limes bestimmen":
         # Zeige Formel
         import sympy as sp
         n = sp.Symbol('n')
-        folge_latex = sp.latex(sp.sympify(folge_input))
         
-        # Nur wenn Limes eine Zahl ist, zeige LaTeX
-        if resultat['typ'] != 'oszillierend':
-            limes_latex = sp.latex(resultat['limes'])
-            st.latex(f"\\lim_{{n \\to \\infty}} {folge_latex} = {limes_latex}")
-        else:
-            st.latex(f"\\lim_{{n \\to \\infty}} {folge_latex} = \\text{{existiert nicht}}")
+        try:
+            folge_latex = sp.latex(sp.sympify(folge_input))
+        except:
+            folge_latex = folge_input
         
-        # Zeige Ergebnis je nach Typ
+        # Zeige LaTeX basierend auf Typ
         if resultat['typ'] == 'oszillierend':
+            st.latex(f"\\lim_{{n \\to \\infty}} {folge_latex} = \\text{{existiert nicht}}")
             st.error(f"❌ {resultat['message']}")
             
-            # Zeige Testwerte
             if 'test_werte' in resultat:
-                st.warning("**Beispiel-Werte zeigen das Oszillieren:**")
+                st.warning("**Erste 20 Werte zeigen das Oszillieren:**")
                 cols = st.columns(5)
                 for i, wert in enumerate(resultat['test_werte'][:10], 1):
                     with cols[(i-1) % 5]:
                         st.metric(f"n={i}", f"{wert:.3f}")
         
-        elif resultat['divergent']:
+        elif resultat['typ'] == 'bestimmt_divergent':
+            st.latex(f"\\lim_{{n \\to \\infty}} {folge_latex} = \\infty")
             st.error(f"❌ {resultat['message']}")
-        else:
+        
+        elif resultat['typ'] == 'konvergent':
+            # Formatiere den Limes schön
+            if isinstance(resultat['limes'], (int, float)):
+                if abs(resultat['limes']) < 0.0001:
+                    limes_anzeige = f"{resultat['limes']:.100f}"  # Als Dezimalzahl
+                else:
+                    limes_anzeige = f"{resultat['limes']}"
+            else:
+                limes_anzeige = str(resultat['limes'])
+            
+            try:
+                limes_latex = sp.latex(sp.sympify(limes_anzeige))
+            except:
+                limes_latex = limes_anzeige
+            
+            st.latex(f"\\lim_{{n \\to \\infty}} {folge_latex} = {limes_latex}")
             st.success(f"✅ {resultat['message']}")
         
-        # Info Box
-        if resultat['typ'] == 'oszillierend':
-            st.info(f"""
-            **Grenzwert:** Existiert nicht ❌
-            
-            **Grund:** Die Folge oszilliert (springt zwischen Werten)
-            
-            **Beispiele für oszillierende Folgen:**
-            - `(-1)**n` (springt zwischen -1 und 1)
-            - `cos(n)` (Kosinus oszilliert)
-            - `sin(n)` (Sinus oszilliert)
-            - `(-5)**n` (springt zwischen sehr großen positiven und negativen Werten)
-            """)
         else:
-            st.info(f"""
-            **Grenzwert:** `{resultat['limes']}`
-            
-            **Status:** {'Divergent ❌' if resultat['divergent'] else 'Konvergent ✅'}
-            """)
+            st.warning(f"⚠️ {resultat['message']}")
+        
+        # Info Box
+        st.info(f"""
+        **Grenzwert:** `{resultat['limes']}`
+        
+        **Status:** {'Divergent ❌' if resultat['divergent'] else 'Konvergent ✅'}
+        """)
 
 # Glied berechnen
+elif modus == "🔢 Glied berechnen":
+    st.header("🔢 Einzelnes Glied berechnen")
+    st.write("Berechnet ein spezifisches Glied einer Folge.")
+    
+    folge_input = st.text_input(
+        "Gib eine Folge ein (verwende 'n' als Variable):",
+        value="1/n",
+        help="Beispiele: 1/n, n**2, (n+1)/(2*n)",
+        key="glied_input"
+    )
+    
+    glied_nr = st.number_input(
+        "Welches Glied willst du berechnen?",
+        min_value=1,
+        value=10,
+        step=1
+    )
+    
+    if st.button("🔍 Glied berechnen", key="glied_button"):
+        try:
+            with st.spinner("Berechne..."):
+                resultat = berechne_glied(folge_input, glied_nr)
+                st.session_state['glied_result'] = resultat
+        
+        except Exception as e:
+            st.error(f"❌ Fehler: {str(e)}")
+    
+    # Zeige Ergebnis und Visualisierung (falls vorhanden)
+    if 'glied_result' in st.session_state:
+        resultat = st.session_state['glied_result']
+        
+        st.success(f"✅ Das {resultat['anzahl']}. Glied wurde berechnet!")
+        st.metric(f"Glied a_{{{resultat['anzahl']}}}", f"{resultat['letzter_wert']:.6f}")
+        
+        # Visualisierung
+        st.markdown("---")
+        st.subheader("📊 Visualisierung")
+        
+        import plotly.graph_objects as go
+        
+        chart_type = st.radio("Diagramm-Typ:", ["📍 Punkte", "📊 Balken"], horizontal=True, key="chart_glied")
+        
+        n_values = list(range(1, len(resultat['alle_werte']) + 1))
+        values = resultat['alle_werte']
+        
+        fig = go.Figure()
+        
+        if chart_type == "📍 Punkte":
+            # Normale Punkte
+            fig.add_trace(go.Scatter(
+                x=n_values[:-1],
+                y=values[:-1],
+                mode='markers',
+                name='Folgenwerte',
+                marker=dict(size=8, color='#2ecc71')
+            ))
+            # Gesuchtes Glied hervorgehoben
+            fig.add_trace(go.Scatter(
+                x=[n_values[-1]],
+                y=[values[-1]],
+                mode='markers',
+                name=f'Gesuchtes Glied (n={resultat["anzahl"]})',
+                marker=dict(size=15, color='red', symbol='star')
+            ))
+        else:
+            # Balken mit letztem rot
+            colors = ['#2ecc71'] * (len(values) - 1) + ['red']
+            fig.add_trace(go.Bar(
+                x=n_values,
+                y=values,
+                marker=dict(color=colors)
+            ))
+        
+        fig.update_layout(
+            xaxis_title='n',
+            yaxis_title='a_n',
+            hovermode='x unified',
+            showlegend=True,
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(f"🔴 Das gesuchte Glied (n={resultat['anzahl']}) ist rot hervorgehoben")
+        
+        with st.expander("📈 Alle berechneten Werte anzeigen"):
+            for i, wert in enumerate(resultat['alle_werte'], 1):
+                st.write(f"a_{{{i}}} = {wert}")
+
+# ε-Umgebung Rechner
 elif modus == "📉 ε-Umgebung (Konvergenz)":
-    st.header("📉 ε-Umgebung und Konvergenz")
+    st.header("🎯 ε-Umgebung und Konvergenz")
     st.write("Berechnet den Grenzwert und prüft die Konvergenz einer Folge.")
     
     col1, col2 = st.columns([2, 1])
@@ -103,7 +207,8 @@ elif modus == "📉 ε-Umgebung (Konvergenz)":
         folge_input = st.text_input(
             "Gib eine Folge ein (verwende 'n' als Variable):",
             value="1/n",
-            help="Beispiele: 1/n, 1/n**2, (n+1)/n"
+            help="Beispiele: 1/n, 1/n**2, (n+1)/n",
+            key="eps_input"
         )
     
     with col2:
@@ -200,103 +305,16 @@ elif modus == "📉 ε-Umgebung (Konvergenz)":
                 for i, wert in enumerate(resultat['alle_werte'], 1):
                     st.write(f"a_{{{i}}} = {wert}")
 
-# Glied Rechner
-elif modus == "🔢 Glied berechnen":
-    st.header("🔢 Glied berechnen")
-    st.write("Berechnet ein spezifisches Glied einer Folge.")
-    
-    folge_input = st.text_input(
-        "Gib eine Folge ein (verwende 'n' als Variable):",
-        value="1/n",
-        help="Beispiele: 1/n, n**2, (n+1)/(2*n)"
-    )
-    
-    glied_nr = st.number_input(
-        "Welches Glied willst du berechnen?",
-        min_value=1,
-        value=10,
-        step=1
-    )
-    
-    if st.button("🔍 Glied berechnen", key="glied_button"):
-        try:
-            with st.spinner("Berechne..."):
-                resultat = berechne_glied(folge_input, glied_nr)
-                st.session_state['glied_result'] = resultat
-        
-        except Exception as e:
-            st.error(f"❌ Fehler: {str(e)}")
-    
-    # Zeige Ergebnis und Visualisierung (falls vorhanden)
-    if 'glied_result' in st.session_state:
-        resultat = st.session_state['glied_result']
-        
-        st.success(f"✅ Das {resultat['anzahl']}. Glied wurde berechnet!")
-        st.metric(f"Glied a_{{{resultat['anzahl']}}}", f"{resultat['letzter_wert']:.6f}")
-        
-        # Visualisierung
-        st.markdown("---")
-        st.subheader("📊 Visualisierung")
-        
-        import plotly.graph_objects as go
-        
-        chart_type = st.radio("Diagramm-Typ:", ["📍 Punkte", "📊 Balken"], horizontal=True, key="chart_glied")
-        
-        n_values = list(range(1, len(resultat['alle_werte']) + 1))
-        values = resultat['alle_werte']
-        
-        fig = go.Figure()
-        
-        if chart_type == "📍 Punkte":
-            # Normale Punkte
-            fig.add_trace(go.Scatter(
-                x=n_values[:-1],
-                y=values[:-1],
-                mode='markers',
-                name='Folgenwerte',
-                marker=dict(size=8, color='#2ecc71')
-            ))
-            # Gesuchtes Glied hervorgehoben
-            fig.add_trace(go.Scatter(
-                x=[n_values[-1]],
-                y=[values[-1]],
-                mode='markers',
-                name=f'Gesuchtes Glied (n={resultat["anzahl"]})',
-                marker=dict(size=15, color='red', symbol='star')
-            ))
-        else:
-            # Balken mit letztem rot
-            colors = ['#2ecc71'] * (len(values) - 1) + ['red']
-            fig.add_trace(go.Bar(
-                x=n_values,
-                y=values,
-                marker=dict(color=colors)
-            ))
-        
-        fig.update_layout(
-            xaxis_title='n',
-            yaxis_title='a_n',
-            hovermode='x unified',
-            showlegend=True,
-            height=500
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        st.caption(f"🔴 Das gesuchte Glied (n={resultat['anzahl']}) ist rot hervorgehoben")
-        
-        with st.expander("📈 Alle berechneten Werte anzeigen"):
-            for i, wert in enumerate(resultat['alle_werte'], 1):
-                st.write(f"a_{{{i}}} = {wert}")
-
-# ε-Umgebung Rechner
+# Partialsummen Rechner
 elif modus == "∑ Partialsumme":
-    st.header("∑ Partialsumme berechnen")
+    st.header("∑ Partialsummen Rechner")
     st.write("Berechnet die Partialsumme einer Folge von n=1 bis n=N.")
     
     folge_input = st.text_input(
         "Gib eine Folge ein (verwende 'n' als Variable):",
         value="1/n**2",
-        help="Beispiele: 1/n, 1/n**2, 2**n"
+        help="Beispiele: 1/n, 1/n**2, 2**n",
+        key="partial_input"
     )
     
     n_max = st.number_input(
@@ -441,6 +459,123 @@ elif modus == "∑ Partialsumme":
                         st.write(f"a_{{{i}}} = {term:.8f} → S_{{{i}}} = {partial:.8f}")
                 else:
                     st.write(f"a_{{{i}}} = {term:.8f} → S_{{{i}}} = {partial:.8f}")
+
+# Monotonie untersuchen
+elif modus == "📈 Monotonie untersuchen":
+    st.header("📈 Monotonie untersuchen")
+    st.write("Untersucht ob eine Folge monoton steigend oder fallend ist.")
+    
+    folge_input = st.text_input(
+        "Gib eine Folge ein (verwende 'n' als Variable):",
+        value="(-1)**n",
+        help="Beispiele: n, -n, (-1)**n, n**2",
+        key="mono_input"
+    )
+    
+    max_iter = st.number_input(
+        "Bis zu welchem Glied soll die Monotonie untersucht werden?",
+        min_value=2,
+        value=20,
+        step=1
+    )
+    
+    if st.button("🔍 Monotonie untersuchen", key="mono_button"):
+        try:
+            with st.spinner("Untersuche Monotonie..."):
+                resultat = berechne_monotonie(folge_input, max_iter)
+                st.session_state['mono_result'] = resultat
+        
+        except Exception as e:
+            st.error(f"❌ Fehler: {str(e)}")
+    
+    # Zeige Ergebnis und Visualisierung (falls vorhanden)
+    if 'mono_result' in st.session_state:
+        resultat = st.session_state['mono_result']
+        
+        st.success("✅ Monotonie untersucht!")
+        
+        # Zeige Intervalle
+        st.markdown("---")
+        st.subheader("📋 Monotonie-Intervalle")
+        
+        # Zusammenfassung
+        anzahl_steigend = sum(1 for i in resultat['intervalle'] if i['typ'] == 'steigend')
+        anzahl_fallend = sum(1 for i in resultat['intervalle'] if i['typ'] == 'fallend')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📈 Steigende Intervalle", anzahl_steigend)
+        with col2:
+            st.metric("📉 Fallende Intervalle", anzahl_fallend)
+        
+        # Alle Intervalle in Expander (aufklappbar)
+        with st.expander(f"📋 Alle {len(resultat['intervalle'])} Intervalle anzeigen", expanded=False):
+            for intervall in resultat['intervalle']:
+                if intervall['typ'] == 'steigend':
+                    st.info(f"📈 **Monoton steigend** von n={intervall['von']} bis n={intervall['bis']}")
+                else:
+                    st.warning(f"📉 **Monoton fallend** von n={intervall['von']} bis n={intervall['bis']}")
+        
+        # Visualisierung
+        st.markdown("---")
+        st.subheader("📊 Visualisierung")
+        
+        import plotly.graph_objects as go
+        
+        n_values = list(range(1, len(resultat['alle_werte']) + 1))
+        values = resultat['alle_werte']
+        
+        fig = go.Figure()
+        
+        # Zeichne farbige Liniensegmente für jedes Intervall
+        for intervall in resultat['intervalle']:
+            # Finde die Indizes für dieses Intervall
+            start_idx = intervall['von'] - 1  # -1 weil Liste bei 0 beginnt
+            end_idx = intervall['bis'] - 1
+            
+            # Extrahiere die Werte für dieses Intervall
+            x_segment = n_values[start_idx:end_idx+1]
+            y_segment = values[start_idx:end_idx+1]
+            
+            # Farbe basierend auf Typ
+            if intervall['typ'] == 'steigend':
+                color = '#2ecc71'  # Grün/Blau für steigend
+                name = f'Steigend ({intervall["von"]}-{intervall["bis"]})'
+            else:
+                color = '#e74c3c'  # Rot für fallend
+                name = f'Fallend ({intervall["von"]}-{intervall["bis"]})'
+            
+            # Zeichne Linie für dieses Segment
+            fig.add_trace(go.Scatter(
+                x=x_segment,
+                y=y_segment,
+                mode='lines+markers',
+                line=dict(color=color, width=3),
+                marker=dict(size=8, color=color),
+                name=name,
+                showlegend=True
+            ))
+        
+        fig.update_layout(
+            xaxis_title='n',
+            yaxis_title='a_n',
+            hovermode='x unified',
+            height=500,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("🔵 Blau/Grün = Monoton steigend | 🔴 Rot = Monoton fallend")
+        
+        with st.expander("📋 Alle Werte anzeigen"):
+            for i, wert in enumerate(resultat['alle_werte'], 1):
+                st.write(f"a_{{{i}}} = {wert:.6f}")
 
 st.markdown("---")
 st.markdown("*Entwickelt mit Streamlit und SymPy*")
