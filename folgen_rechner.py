@@ -61,22 +61,23 @@ if __name__ == "__main__":
         while n <= max_iter:
             wert = eval(f, {"n": n, "__builtins__": {}})
             result.append(wert)
+            limespos = limes + eps
+            limesneg = limes - eps
             print(f"a_{{{n}}} = {wert}")
-            if wert <= eps:
+            if wert <= limespos and wert >= limesneg:
                 break
             n += 1
         return result, n
 
     if limes == sp.oo:
-        print(f"Da der Limes gegen {limes} geht ist diese Folge Divergent.")
+        print(f"Da der Limes gegen {limes} geht ist er Divergent.")
     else:
         ergebnis, anzahl = folge(f, eps, max_iter)
-        print(f"Diese Folge konvergiert gegen {limes}.")
-        print(f"\n✅ Die Folge wurde {anzahl} mal berechnet")
+        print(f"Der Limes geht gegen {limes} und ist deshalb konvergent")
+        print(f"\n Die Folge wurde {anzahl} mal berechnet")
         
         if anzahl >= max_iter:
-            print(f"⚠️ WARNUNG: Maximale Iterationen erreicht!")
+            print(f" WARNUNG: Maximale Iterationen erreicht!")
         
-        print(f"📊 Letzter Wert: {ergebnis[-1]}")
-        print(f"📈 Alle Werte: {ergebnis}")
-
+        print(f" Letzter Wert: {ergebnis[-1]}")
+        print(f" Alle Werte: {ergebnis}")
