@@ -83,7 +83,7 @@ if modus == "🎯 Limes bestimmen":
             # Formatiere den Limes schön
             if isinstance(resultat['limes'], (int, float)):
                 if abs(resultat['limes']) < 0.0001:
-                    limes_anzeige = f"{resultat['limes']:.100f}"  # Als Dezimalzahl
+                    limes_anzeige = f"{resultat['limes']:.10f}"  # Als Dezimalzahl
                 else:
                     limes_anzeige = f"{resultat['limes']}"
             else:
